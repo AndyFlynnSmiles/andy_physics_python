@@ -26,7 +26,7 @@ floor_right = physics_bodys.RigidBody(Vector2(600, 300), rotation=-45, shape=pol
 #A
 points = [Vector2(-80, 40), Vector2(80, 40), Vector2(80, -40), Vector2(-80, -40)]
 polygon = shapes.Polygon(points)
-rigidbody_a = physics_bodys.RigidBody(Vector2(400, 0), shape=polygon, mass=10, velocity=Vector2(100, 0), gravity=Vector2(0, 981))
+rigidbody_a = physics_bodys.RigidBody(Vector2(400, 0), shape=polygon, mass=10, velocity=Vector2(100, 0), gravity=Vector2(0, 98.1))
 
 #B
 points = [Vector2(-80, 80), Vector2(80, 80), Vector2(80, -80)]
@@ -38,7 +38,6 @@ while not window_should_close():
     mouse_position = get_mouse_position()
     
     rigidbody_b.position = mouse_position
-    print(rigidbody_a.id)
 
     global_varibles.PHYSICS_MANAGER.update()
 

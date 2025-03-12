@@ -62,10 +62,11 @@ class RigidBody(PhysicsBody):
         
         if physics_manager is None:
             physics_manager = global_varibles.PHYSICS_MANAGER
-        physics_manager.add_physics_body(self)
+        
         self.id = physics_manager.max_id
         physics_manager.max_id += 1
         self.physics_manager = physics_manager
+        physics_manager.add_physics_body(self)
 
         self.position = position
         self.velocity = velocity
