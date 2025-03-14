@@ -74,9 +74,12 @@ def norm(v):
         return Vector2(v.x / l, v.y / l)
     return Vector2(0, 0)
 
+def perp(v):
+    return Vector2(v.y, -v.x)
+
 def tang(v):
     n = norm(v)
-    return Vector2(n.y, -n.x)
+    return perp(n)
 
 def aligned_tang(v, d):
     t = tang(v)

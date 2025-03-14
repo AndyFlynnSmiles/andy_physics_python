@@ -1,1 +1,1 @@
-rigidbody_b = physics_bodys.RigidBody(Vector2(
+SCREEN_WIDTH = 960

@@ -39,7 +39,7 @@ class Polygon(Shape):
         self.area = abs(sum(vec_math.cross(points[i - 1], points[i]) for i in range(len(points))) / 2)
 
         self.points = points
-        self.transformed_points = points
+        self.transformed_points = [Vector2(0, 0) for _ in range(len(points))]
 
         self.update_center_of_mass()
 
@@ -57,8 +57,12 @@ class Polygon(Shape):
         if around is None:
             around = position
 
-        self.transformed_points = [vec_math.add(point, position) for point in self.points]
-        self.transformed_points = [vec_math.rotate_around(point, around, rotation) for point in self.transformed_points]
+        new_transformed_points = [vec_math.add(point, position) for point in self.points]
+        new_transformed_points = [vec_math.rotate_around(point, around, rotation) for point in new_transformed_points]
+
+        for i in range(len(self.transformed_points)):
+            self.transformed_points[i].x = new_transformed_points[i].x
+            self.transformed_points[i].y = new_transformed_points[i].y
 
     def draw(self):
         for i in range(len(self.transformed_points)):

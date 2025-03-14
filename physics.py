@@ -28,7 +28,7 @@ def get_collision_penetration(shape_a: Shape, shape_b: Shape): #Penetration from
     return epa(polytope, shape_a, shape_b)
                          
 
-def get_collision_edge(penetration: Vector2, shape_a: Shape, shape_b: Shape, edge_angle: float = 0.2, mass_ratio_a = 0.5, debug = True): #Returns list of (v1, v2) for edge or v for point
+def get_collision_edge(penetration: Vector2, shape_a: Shape, shape_b: Shape, edge_angle: float = 0.2, mass_ratio_a = 0.5, debug = True):
     penetration = vec_math.scale(penetration, 1 / 2)
     penetration_normal = vec_math.norm(penetration)
 
@@ -49,24 +49,34 @@ def get_collision_edge(penetration: Vector2, shape_a: Shape, shape_b: Shape, edg
     anticlockwise_edge_project_b = vec_math.dot(penetration_tangent, anticlockwise_edge_point_b)
     clockwise_edge_project_b = vec_math.dot(penetration_tangent, clockwise_edge_point_b)
 
+    vertex_1 = None
+    vertex_2 = None
     if anticlockwise_edge_project_a <= clockwise_edge_project_b:
         if clockwise_edge_project_a <= anticlockwise_edge_project_b:
+            vertex_1 = anticlockwise_edge_point_a
+            vertex_2 = anticlockwise_edge_point_b
             contact_point = vec_math.add(anticlockwise_edge_point_a, anticlockwise_edge_point_b)
             contact_point = vec_math.scale(contact_point, 1 / 2)
             contact_point = vec_math.add(contact_point, vec_math.scale(penetration, (0.5 - mass_ratio_a) * -2))
             overlap = abs(anticlockwise_edge_project_a - anticlockwise_edge_project_b)
         else:
+            vertex_1 = anticlockwise_edge_point_a
+            vertex_2 = clockwise_edge_point_a
             contact_point = vec_math.add(anticlockwise_edge_point_a, clockwise_edge_point_a)
             contact_point = vec_math.scale(contact_point, 1 / 2)
             contact_point = vec_math.add(contact_point, vec_math.scale(penetration, (1 - mass_ratio_a) * -2))
             overlap = abs(anticlockwise_edge_project_a - clockwise_edge_project_a)
     else:
         if clockwise_edge_project_a >= anticlockwise_edge_project_b:
+            vertex_1 = clockwise_edge_point_a
+            vertex_2 = clockwise_edge_point_b
             contact_point = vec_math.add(clockwise_edge_point_a, clockwise_edge_point_b)
             contact_point = vec_math.scale(contact_point, 1 / 2)
             contact_point = vec_math.add(contact_point, vec_math.scale(penetration, (0.5 - mass_ratio_a) * -2))
             overlap = abs(clockwise_edge_project_a - clockwise_edge_project_b)
         else:
+            vertex_1 = anticlockwise_edge_point_b
+            vertex_2 = clockwise_edge_point_b
             contact_point = vec_math.add(anticlockwise_edge_point_b, clockwise_edge_point_b)
             contact_point = vec_math.scale(contact_point, 1 / 2)
             contact_point = vec_math.add(contact_point, vec_math.scale(penetration, mass_ratio_a * 2))
@@ -79,7 +89,7 @@ def get_collision_edge(penetration: Vector2, shape_a: Shape, shape_b: Shape, edg
         draw_circle_v(clockwise_edge_point_b, 3, PINK)
         draw_circle_v(contact_point, 5, RED)
 
-    return contact_point, overlap
+    return contact_point, overlap, vertex_1, vertex_2
 
 
 class RestingContact:
@@ -103,10 +113,7 @@ class PhysicsManager:
     def add_physics_body(self, physics_body: PhysicsBody):
         self.physics_bodys[physics_body.id] = physics_body
 
-    def add_resting_contact(self, position, normal, id_a, id_b, contact_velocity):
-        id_low = min(id_a, id_b)
-        id_high = max(id_a, id_b)
-
+    def add_resting_contact(self, position, normal, id_low, id_high, contact_velocity):
         tang_rel_speed = abs(vec_math.dot(vec_math.tang(normal), contact_velocity))
 
         self.resting_contacts[id_low] = self.resting_contacts.get(id_low, [])
@@ -146,8 +153,10 @@ class PhysicsManager:
                 r_a = vec_math.sub(contact.position, vec_math.add(physics_body_a.position, vec_math.rotate(com_a, physics_body_a.rotation)))
                 r_b = vec_math.sub(contact.position, vec_math.add(physics_body_b.position, vec_math.rotate(com_b, physics_body_b.rotation)))
 
-                contact_speed_a = vec_math.add(v_a, vec_math.scale(vec_math.tang(r_a), w_a))
-                contact_speed_b = vec_math.add(v_b, vec_math.scale(vec_math.tang(r_b), w_b))
+                contact_speed_a = vec_math.add(v_a, vec_math.scale(vec_math.perp(r_a), -w_a))
+                contact_speed_b = vec_math.add(v_b, vec_math.scale(vec_math.perp(r_b), -w_b))
+
+                print(vec_math.dot(contact.normal, vec_math.sub(vec_math.scale(vec_math.tang(r_a), w_a), vec_math.scale(vec_math.tang(r_b), w_b))))
 
                 contact_velocity = vec_math.sub(contact_speed_a, contact_speed_b)
                 if vec_math.dot(contact.normal, contact_velocity) < 0:
@@ -187,7 +196,7 @@ class PhysicsManager:
         else:
             return
         
-        contact_point, edge_overlap = get_collision_edge(penetration, physics_body_low.shape, physics_body_high.shape, mass_ratio_a=mass_ratio_a)
+        contact_point, edge_overlap, rest_contact_1, rest_contact_2 = get_collision_edge(penetration, physics_body_low.shape, physics_body_high.shape, mass_ratio_a=mass_ratio_a)
         
         physics_body_low.translate(contact_offset_a)
         physics_body_high.translate(contact_offset_b)
@@ -271,7 +280,13 @@ class PhysicsManager:
         physics_body_low.apply_force_at_point(vec_math.neg(friction_force), vec_math.add(contact_point, contact_offset_a))
         physics_body_high.apply_force_at_point(friction_force, vec_math.add(contact_point, contact_offset_b))
 
-        self.add_resting_contact(contact_point, n, physics_body_low.id, physics_body_high.id, contact_velocity)
+        if edge_overlap == 0:
+            self.add_resting_contact(rest_contact_1, n, physics_body_low.id, physics_body_high.id, contact_velocity)
+        else:
+            left_contact = rest_contact_1
+            right_contact = rest_contact_2
+            self.add_resting_contact(left_contact, n, physics_body_low.id, physics_body_high.id, contact_velocity)
+            self.add_resting_contact(right_contact, n, physics_body_low.id, physics_body_high.id, contact_velocity)
 
     def resolve_collisions(self): #Add a broadphase
         for physics_body_a, physics_body_b in combinations(self.physics_bodys.values(), 2):
@@ -280,7 +295,7 @@ class PhysicsManager:
             self.resolve_collision(physics_body_a, physics_body_b)
 
     def update(self):
-        print(self.resting_contacts.keys())
+        #print(self.resting_contacts.keys())
 
         #print(sum([len(x) for x in self.resting_contacts.values()]))
 
